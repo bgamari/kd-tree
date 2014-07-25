@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}                
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Data.KdTree
     ( KdTree
