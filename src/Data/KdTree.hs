@@ -25,7 +25,10 @@ import Data.Vector.Algorithms.Intro (sortBy)
 -- | The k-d tree is a data structure capable of efficiently answering
 -- nearest neighbor search queries in low-dimensional spaces. As a rule
 -- of thumb, for efficient lookups the number of points in @k@ dimensions
--- should greatly exceed @2^k@
+-- should greatly exceed @2^k@.
+--
+-- The average complexity of a nearest neighbor lookup is logarithmic in
+-- the number of points although can be linear in the worst case.
 data KdTree f a = KdNode { point :: !(f a)
                          , axis  :: E f
                          , left  :: KdTree f a
@@ -50,7 +53,8 @@ fromVector basis pts = go (cycle basis) pts
 quadranceTo :: (Num a, Metric f) => f a -> f a -> a
 quadranceTo a b = quadrance (a ^-^ b)
 
--- | Find the point nearest to the given point
+-- | Find the point nearest to the given point. On average this has
+-- complexity logarithmic to the number of points.
 nearest :: forall f a. (Ord a, Num a, Metric f)
         => f a -> KdTree f a -> Maybe (f a)
 nearest pt tree = go tree
