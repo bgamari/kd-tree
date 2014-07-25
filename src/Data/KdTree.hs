@@ -72,7 +72,7 @@ nearest pt tree = go tree
                    Just best' -> [best', nodePt]
           tryAdj = (pt^.el axis - nodePt^.el axis)^2 <= quadrance (pt ^-^ nodePt)
           bestAdj = if tryAdj
-                      then [] --maybeToList $ go other
+                      then maybeToList $ go other
                       else []
       in Just $ minimumBy (comparing $ quadranceTo pt) (best ++ bestAdj)
 
