@@ -99,8 +99,15 @@ onAxis (E l) f a b = f (a ^. l) (b ^. l)
 
 -- | Given names for the axes show the tree
 showKdTree :: Show (f a) => f String -> KdTree f a -> String
-showKdTree _ KdEmpty = "KdEmpty"
-showKdTree axisNames (KdNode point axis l r) =
-    "KdNode "++show point++" "++show (axisNames ^. el axis)
-    ++" ("++showKdTree axisNames l++")"
-    ++" ("++showKdTree axisNames r++")"
+showKdTree axisNames tree = unlines $ fmt 0 tree
+  where
+    --fmt :: Int -> Kdtree f a -> [String]
+    fmt depth node =
+      case node of
+        KdEmpty -> [indent "KdEmpty"]
+        (KdNode point axis l r) ->
+          [ indent $ "KdNode ("++show point++") "++show (axisNames ^. el axis) ]
+          ++ fmt (depth+2) l
+          ++ [""]
+          ++ fmt (depth+2) r
+      where indent = (replicate depth ' ' ++)
