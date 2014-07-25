@@ -21,6 +21,10 @@ import Control.Lens
 import qualified Data.Vector.Generic as V
 import Data.Vector.Algorithms.Intro (sortBy)
 
+-- | The k-d tree is a data structure capable of efficiently answering
+-- nearest neighbor search queries in low-dimensional spaces. As a rule
+-- of thumb, for efficient lookups the number of points in @k@ dimensions
+-- should greatly exceed @2^k@
 data KdTree f a = KdNode { point :: !(f a)
                          , axis  :: E f
                          , left  :: KdTree f a
