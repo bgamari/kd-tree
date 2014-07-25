@@ -9,6 +9,7 @@ module Data.KdTree
     , toList
       -- * Diagnostics
     , isValid
+    , showKdTree
     ) where
 
 import Prelude hiding (sort)
@@ -95,3 +96,11 @@ isValid node@(KdNode _ _ l r) =
 
 onAxis :: E f -> (a -> a -> b) -> f a -> f a -> b
 onAxis (E l) f a b = f (a ^. l) (b ^. l)
+
+-- | Given names for the axes show the tree
+showKdTree :: Show (f a) => f String -> KdTree f a -> String
+showKdTree _ KdEmpty = "KdEmpty"
+showKdTree axisNames (KdNode point axis l r) =
+    "KdNode "++show point++" "++show (axisNames ^. el axis)
+    ++" ("++showKdTree axisNames l++")"
+    ++" ("++showKdTree axisNames r++")"
