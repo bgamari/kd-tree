@@ -46,11 +46,11 @@ fromVector basis pts = go (cycle basis) pts
                 , right = go rest $ V.drop (pivotIdx+1) pts'
                 }
 
-distanceTo :: (Floating a, Metric f) => f a -> f a -> a
-distanceTo a b = norm $ a ^-^ b           
+quadranceTo :: (Num a, Metric f) => f a -> f a -> a
+quadranceTo a b = quadrance (a ^-^ b)
 
 -- | Find the point nearest to the given point
-nearest :: forall f a. (Ord a, Floating a, Metric f)
+nearest :: forall f a. (Ord a, Num a, Metric f)
         => f a -> KdTree f a -> Maybe (f a)
 nearest pt tree = go tree
   where
@@ -73,7 +73,7 @@ nearest pt tree = go tree
           bestAdj = if tryAdj
                       then [] --maybeToList $ go other
                       else []
-      in Just $ minimumBy (comparing $ distanceTo pt) (best ++ bestAdj)
+      in Just $ minimumBy (comparing $ quadranceTo pt) (best ++ bestAdj)
 
 -- | List all points in a tree
 toList :: KdTree f a -> [f a]
