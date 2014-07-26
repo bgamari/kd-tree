@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
                 
 import Control.Applicative
 import qualified Data.Vector as V
@@ -34,8 +35,8 @@ gen_nearest axisNames basis _ = property prop
   where
     prop :: [f a] -> f a -> Property
     prop pts testPt = 
-      let tree = Kd.fromVector basis $ V.fromList pts
-          Just n = Kd.nearest testPt tree
+      let tree = Kd.fromVector basis $ V.fromList $ map (,()) pts
+          Just (n,_) = Kd.nearest testPt tree
           dist = quadrance (testPt ^-^ n)
       in property $ counterexample (Kd.showKdTree axisNames tree)
          $ all (\p->quadrance (p ^-^ testPt) >= dist) pts

@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Data.KdTree
     ( KdTree
@@ -6,6 +7,7 @@ module Data.KdTree
     , fromVector
       -- * Queries
     , nearest
+    , points
     , toList
       -- * Diagnostics
     , isValid
@@ -29,23 +31,27 @@ import Data.Vector.Algorithms.Intro (sortBy)
 --
 -- The average complexity of a nearest neighbor lookup is logarithmic in
 -- the number of points although can be linear in the worst case.
-data KdTree f a = KdNode { point :: !(f a)
-                         , axis  :: E f
-                         , left  :: KdTree f a
-                         , right :: KdTree f a
-                         }
-                | KdEmpty
+data KdTree ann f a = KdNode { point :: !(f a)
+                             , axis  :: E f
+                             , ann   :: ann
+                             , left  :: KdTree ann f a
+                             , right :: KdTree ann f a
+                             }
+                    | KdEmpty
 
 -- | Construct a @KdTree@ from a vector of points
-fromVector :: (Ord a, V.Vector v (f a)) => [E f] -> v (f a) -> KdTree f a
+fromVector :: (Ord a, V.Vector v (f a, ann))
+           => [E f] -> v (f a, ann) -> KdTree ann f a
 fromVector basis pts = go (cycle basis) pts
   where
     go _ pts | V.null pts = KdEmpty
     go (axis:rest) pts =
-      let pts' = V.modify (sortBy $ comparing (^. el axis)) pts
+      let pts' = V.modify (sortBy $ comparing (^. _1 . el axis)) pts
           pivotIdx = V.length pts' `div` 2
-      in KdNode { point = pts' V.! pivotIdx
+          pivot = pts' V.! pivotIdx
+      in KdNode { point = pivot ^. _1
                 , axis  = axis
+                , ann   = pivot ^. _2
                 , left  = go rest $ V.take pivotIdx pts'
                 , right = go rest $ V.drop (pivotIdx+1) pts'
                 }
@@ -55,61 +61,67 @@ quadranceTo a b = quadrance (a ^-^ b)
 
 -- | Find the point nearest to the given point. On average this has
 -- complexity logarithmic in the number of points.
-nearest :: forall f a. (Ord a, Num a, Metric f)
-        => f a -> KdTree f a -> Maybe (f a)
+nearest :: forall ann f a. (Ord a, Num a, Metric f)
+        => f a -> KdTree ann f a -> Maybe (f a, ann)
 nearest pt tree = go tree
   where
-    go :: KdTree f a -> Maybe (f a)
+    go :: KdTree ann f a -> Maybe (f a, ann)
     go KdEmpty = Nothing
-    go (KdNode nodePt axis l r)
-      | (pt ^. el axis) <= (nodePt ^. el axis) = go' nodePt axis l r
-      | otherwise                              = go' nodePt axis r l
+    go (KdNode nodePt axis ann l r)
+      | (pt ^. el axis) <= (nodePt ^. el axis) = go' nodePt axis ann l r
+      | otherwise                              = go' nodePt axis ann r l
 
     go' :: f a   -- ^ The point of the node we are sitting at
         -> E f   -- ^ The splitting axis of the node
-        -> KdTree f a -- ^ The subnode the query point sits in
-        -> KdTree f a -- ^ The other subnode
-        -> Maybe (f a)
-    go' nodePt axis side other =
+        -> ann
+        -> KdTree ann f a -- ^ The subnode the query point sits in
+        -> KdTree ann f a -- ^ The other subnode
+        -> Maybe (f a, ann)
+    go' nodePt axis ann side other =
       let best = case go side of
-                   Nothing    -> [nodePt]
-                   Just best' -> [best', nodePt]
+                   Nothing    -> [(nodePt, ann)]
+                   Just best' -> [best', (nodePt, ann)]
           tryAdj = (pt^.el axis - nodePt^.el axis)^2 <= quadrance (pt ^-^ nodePt)
           bestAdj = if tryAdj
                       then maybeToList $ go other
                       else []
-      in Just $ minimumBy (comparing $ quadranceTo pt) (best ++ bestAdj)
+          dist a = quadrance $ pt ^-^ fst a
+      in Just $ minimumBy (comparing dist) (best ++ bestAdj)
+
+-- | List all points and values in a tree
+toList :: KdTree ann f a -> [(f a, ann)]
+toList KdEmpty = []
+toList (KdNode point _ ann l r) = (point, ann) : (toList l ++ toList r)
 
 -- | List all points in a tree
-toList :: KdTree f a -> [f a]
-toList KdEmpty = []
-toList (KdNode point _ l r) = point : (toList l ++ toList r)
+points :: KdTree ann f a -> [f a]
+points = map fst . toList
 
 -- | Verify that the node is well-formed
-nodeIsValid :: Ord a => KdTree f a -> Bool
+nodeIsValid :: Ord a => KdTree ann f a -> Bool
 nodeIsValid KdEmpty = True
-nodeIsValid (KdNode point axis l r) =
-       all (\p->p^.el axis <= point^.el axis) (toList l)
-    && all (\p->p^.el axis >  point^.el axis) (toList r)
+nodeIsValid (KdNode point axis _ l r) =
+       all (\p->p^.el axis <= point^.el axis) (points l)
+    && all (\p->p^.el axis >  point^.el axis) (points r)
 
 -- | Verify that the tree is well-formed (recursively)
-isValid :: Ord a => KdTree f a -> Bool
+isValid :: Ord a => KdTree ann f a -> Bool
 isValid KdEmpty = True
-isValid node@(KdNode _ _ l r) =
+isValid node@(KdNode _ _ _ l r) =
     nodeIsValid node && isValid l && isValid r
 
 onAxis :: E f -> (a -> a -> b) -> f a -> f a -> b
 onAxis (E l) f a b = f (a ^. l) (b ^. l)
 
 -- | Given names for the axes show the tree
-showKdTree :: Show (f a) => f String -> KdTree f a -> String
+showKdTree :: Show (f a) => f String -> KdTree ann f a -> String
 showKdTree axisNames tree = unlines $ fmt 0 tree
   where
     --fmt :: Int -> Kdtree f a -> [String]
     fmt depth node =
       case node of
         KdEmpty -> [indent "KdEmpty"]
-        (KdNode point axis l r) ->
+        (KdNode point axis _ l r) ->
           [ indent $ "KdNode ("++show point++") "++show (axisNames ^. el axis) ]
           ++ fmt (depth+2) l
           ++ [""]
