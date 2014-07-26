@@ -54,7 +54,7 @@ quadranceTo :: (Num a, Metric f) => f a -> f a -> a
 quadranceTo a b = quadrance (a ^-^ b)
 
 -- | Find the point nearest to the given point. On average this has
--- complexity logarithmic to the number of points.
+-- complexity logarithmic in the number of points.
 nearest :: forall f a. (Ord a, Num a, Metric f)
         => f a -> KdTree f a -> Maybe (f a)
 nearest pt tree = go tree
